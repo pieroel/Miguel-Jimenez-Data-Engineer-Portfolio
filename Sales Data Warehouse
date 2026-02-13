@@ -1,0 +1,44 @@
+01_sales_pipeline
+ ┣ 📂 data
+ ┃   ┗ sales.csv
+ ┣ 📂 dags
+ ┃   ┗ sales_pipeline.py
+ ┣ 📂 sql
+ ┃   ┣ create_tables.sql
+ ┃   ┗ analytics.sql
+ ┣ 📂 python
+ ┃   ┗ load_to_snowflake.py
+ ┗ README.md
+
+
+📄 sales.csv (ejemplo)
+order_id,customer_name,country,product,amount,order_date
+1,Ana Gomez,Mexico,Laptop,1200,2024-01-01
+2,John Smith,United States,Phone,800,2024-01-02
+3,Ana Gomez,Mexico,Tablet,500,2024-01-03
+
+
+🧱 Snowflake – create_tables.sql
+CREATE OR REPLACE TABLE dim_customer (
+    customer_id INTEGER AUTOINCREMENT,
+    customer_name STRING,
+    country STRING
+);
+
+CREATE OR REPLACE TABLE dim_product (
+    product_id INTEGER AUTOINCREMENT,
+    product STRING
+);
+
+CREATE OR REPLACE TABLE dim_date (
+    date_id INTEGER AUTOINCREMENT,
+    order_date DATE
+);
+
+CREATE OR REPLACE TABLE fact_sales (
+    order_id INT,
+    customer_id INT,
+    product_id INT,
+    date_id INT,
+    amount FLOAT
+);
