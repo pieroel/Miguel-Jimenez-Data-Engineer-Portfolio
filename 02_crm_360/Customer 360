@@ -1,0 +1,121 @@
+📦 Estructura del proyecto
+02_crm_customer_360
+ ┣ 📂 data
+ ┃   ┣ crm.csv
+ ┃   ┣ web.csv
+ ┃   ┗ support.csv
+ ┣ 📂 python
+ ┃   ┣ normalize.py
+ ┃   ┣ deduplicate.py
+ ┃   ┗ load_snowflake.py
+ ┣ 📂 sql
+ ┃   ┣ create_tables.sql
+ ┃   ┗ customer_360.sql
+ ┣ 📂 dags
+ ┃   ┗ customer360_pipeline.py
+ ┗ README.md
+
+🧪 1️⃣ Datos de entrada
+crm.csv
+customer_id,name,email,country,phone
+1,Ana Gómez,ana@gmail.com,México,+52 55-3344-9988
+2,John Smith,JOHN@GMAIL.COM,United States,1-202-333-8888
+3,Ana Gomez,ana@gmail.com,MEX,+525533449988
+
+
+web.csv
+email,last_login,device
+ana@gmail.com,2024-01-15,mobile
+john@gmail.com,2024-01-10,desktop
+
+
+support.csv
+email,tickets
+ana@gmail.com,3
+john@gmail.com,1
+
+🐍 2️⃣ Normalización (normalize.py)
+
+import pandas as pd
+
+def normalize_country(c):
+    mapping = {"México":"MX","MEX":"MX","United States":"US"}
+    return mapping.get(c, c.upper())
+
+def normalize_phone(p):
+    return p.replace(" ", "").replace("-", "")
+
+crm = pd.read_csv("data/crm.csv")
+
+crm["email"] = crm["email"].str.lower()
+crm["country"] = crm["country"].apply(normalize_country)
+crm["phone"] = crm["phone"].apply(normalize_phone)
+
+crm.to_csv("data/crm_clean.csv", index=False)
+
+🧬 3️⃣ Deduplicación (deduplicate.py)
+import pandas as pd
+
+df = pd.read_csv("data/crm_clean.csv")
+
+# Deduplicar por email
+df = df.sort_values("customer_id")
+df = df.drop_duplicates(subset="email", keep="first")
+
+df.to_csv("data/crm_master.csv", index=False)
+
+❄️ 4️⃣ Snowflake – create_tables.sql
+CREATE OR REPLACE TABLE customer_master (
+    customer_id INT,
+    name STRING,
+    email STRING,
+    country STRING,
+    phone STRING,
+    last_login DATE,
+    tickets INT
+);
+
+🔗 5️⃣ Integración Customer 360 (customer_360.sql)
+CREATE OR REPLACE VIEW customer_360 AS
+SELECT 
+    c.customer_id,
+    c.name,
+    c.email,
+    c.country,
+    c.phone,
+    w.last_login,
+    s.tickets
+FROM customer_master c
+LEFT JOIN web_data w ON c.email = w.email
+LEFT JOIN support_data s ON c.email = s.email;
+
+
+⏱ 6️⃣ Airflow – customer360_pipeline.py
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+with DAG("customer_360",
+         start_date=datetime(2024,1,1),
+         schedule_interval="@daily",
+         catchup=False) as dag:
+
+    normalize = BashOperator(
+        task_id="normalize",
+        bash_command="python /python/normalize.py"
+    )
+
+    dedup = BashOperator(
+        task_id="deduplicate",
+        bash_command="python /python/deduplicate.py"
+    )
+
+    load = BashOperator(
+        task_id="load",
+        bash_command="python /python/load_snowflake.py"
+    )
+
+    normalize >> dedup >> load
+
+
+
