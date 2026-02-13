@@ -79,8 +79,8 @@ Each project simulates **real business problems**:
 ---
 
 ## 📬 Contact
-
-LinkedIn: *(your link)*  
-Email: *(your email)*  
+1
+LinkedIn: *(https://www.linkedin.com/in/pedrojimenezmartinez/)*  
+Email: *(pieroel@gmail.com)*  
 
 If you need a **Data Engineer who can handle real pipelines**, let’s talk.
