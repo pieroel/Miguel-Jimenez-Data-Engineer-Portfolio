@@ -1,1 +1,18 @@
+# Customer 360 Platform
+
+This project builds a unified customer profile by combining CRM, web and support data.
+
+## Business Problem
+Customer data comes from multiple systems with:
+- Duplicates
+- Inconsistent country formats
+- Dirty phone numbers
+
+## Solution
+- Normalize data
+- Deduplicate customers
+- Merge data into a single Snowflake table
+
+## Output
+A clean Customer 360 table used by marketing, sales and support.
 
