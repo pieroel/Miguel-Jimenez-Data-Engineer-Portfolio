@@ -42,3 +42,56 @@ CREATE OR REPLACE TABLE fact_sales (
     date_id INT,
     amount FLOAT
 );
+
+🐍 Python – load_to_snowflake.py
+import pandas as pd
+import snowflake.connector
+
+df = pd.read_csv("data/sales.csv")
+
+conn = snowflake.connector.connect(
+    user="USER",
+    password="PASSWORD",
+    account="ACCOUNT",
+    warehouse="WH",
+    database="DB",
+    schema="PUBLIC"
+)
+
+cur = conn.cursor()
+
+for _, row in df.iterrows():
+    cur.execute("""
+        INSERT INTO fact_sales (order_id, amount)
+        VALUES (%s, %s)
+    """, (row['order_id'], row['amount']))
+
+conn.commit()
+
+⏱ Airflow – dags/sales_pipeline.py
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+with DAG("sales_pipeline",
+         start_date=datetime(2024,1,1),
+         schedule_interval="@daily",
+         catchup=False) as dag:
+
+    load = BashOperator(
+        task_id="load_sales",
+        bash_command="python /python/load_to_snowflake.py"
+    )
+
+    load
+📊 SQL Analytics – analytics.sql
+SELECT c.country,
+       SUM(f.amount) AS total_revenue
+FROM fact_sales f
+JOIN dim_customer c
+ON f.customer_id = c.customer_id
+GROUP BY c.country;
+
+
+
+
