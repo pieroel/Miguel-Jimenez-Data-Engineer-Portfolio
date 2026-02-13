@@ -1,0 +1,92 @@
+📦 Estructura del proyecto
+03_data_quality_engine
+ ┣ 📂 data
+ ┃   ┗ input.csv
+ ┣ 📂 python
+ ┃   ┣ rules.py
+ ┃   ┣ validate.py
+ ┃   ┗ quarantine.py
+ ┣ 📂 sql
+ ┃   ┗ quality_metrics.sql
+ ┣ 📂 dags
+ ┃   ┗ dq_pipeline.py
+ ┗ README.md
+
+🧪 input.csv
+id,name,email,country,birthdate,phone
+1,Ana Gómez,ana@gmail.com,México,1990-05-10,+52 55 3344
+2,,john@gmail,United States,1995/10/20,123
+3,Pedro Ruiz,pedro@gmail.com,Spain,1985-01-01,+34 600123456
+
+🧬 rules.py (Reglas de calidad)
+import re
+
+def valid_email(e):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", e)
+
+def valid_phone(p):
+    return len(p.replace(" ","").replace("+","")) >= 10
+
+def valid_country(c):
+    return c.upper() in ["MX","US","CA","ES"]
+
+def valid_date(d):
+    return "-" in d
+
+🧪 validate.py
+import pandas as pd
+from rules import *
+
+df = pd.read_csv("data/input.csv")
+
+good = []
+bad = []
+
+for _, r in df.iterrows():
+    if valid_email(r["email"]) and valid_phone(r["phone"]) and valid_date(r["birthdate"]):
+        good.append(r)
+    else:
+        bad.append(r)
+
+pd.DataFrame(good).to_csv("data/valid.csv", index=False)
+pd.DataFrame(bad).to_csv("data/rejected.csv", index=False)
+
+🚨 quarantine.py
+import pandas as pd
+
+bad = pd.read_csv("data/rejected.csv")
+bad["reason"] = "FAILED_VALIDATION"
+
+bad.to_csv("data/quarantine.csv", index=False)
+
+
+❄️ Snowflake – quality_metrics.sql
+SELECT
+    COUNT(*) AS total,
+    SUM(CASE WHEN status='VALID' THEN 1 ELSE 0 END) AS valid,
+    SUM(CASE WHEN status='INVALID' THEN 1 ELSE 0 END) AS invalid
+FROM data_quality_log;
+
+
+⏱ Airflow – dq_pipeline.py
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+with DAG("data_quality_engine",
+         start_date=datetime(2024,1,1),
+         schedule_interval="@hourly",
+         catchup=False) as dag:
+
+    validate = BashOperator(
+        task_id="validate",
+        bash_command="python /python/validate.py"
+    )
+
+    quarantine = BashOperator(
+        task_id="quarantine",
+        bash_command="python /python/quarantine.py"
+    )
+
+    validate >> quarantine
+
