@@ -1,0 +1,129 @@
+🧠 Problema real
+
+We got:
+10 processes
+Loading thousands of records
+In the same table
+
+Results:
+Deadlocks
+Timeouts
+duplicated records
+data corruption
+
+📦 Estructura
+04_real_time_pipeline
+ ┣ 📂 python
+ ┃   ┣ generate_data.py
+ ┃   ┣ concurrent_load.py
+ ┃   ┗ safe_merge.py
+ ┣ 📂 sql
+ ┃   ┗ staging_tables.sql
+ ┣ 📂 dags
+ ┃   ┗ concurrent_pipeline.py
+ ┗ README.md
+
+🧱 staging_tables.sql
+CREATE OR REPLACE TABLE sales_staging (
+    order_id INT,
+    customer STRING,
+    amount FLOAT,
+    batch_id STRING
+);
+
+CREATE OR REPLACE TABLE sales_final (
+    order_id INT,
+    customer STRING,
+    amount FLOAT
+);
+
+🐍 generate_data.py
+import random
+import csv
+
+with open("data.csv", "w", newline="") as f:
+    writer = csv.writer(f)
+    writer.writerow(["order_id","customer","amount"])
+    for i in range(1,5000):
+        writer.writerow([i, f"Cust{i%100}", random.randint(10,500)])
+
+
+🧵 concurrent_load.py
+import threading
+import pandas as pd
+import snowflake.connector
+import uuid
+
+df = pd.read_csv("data.csv")
+
+def load_chunk(chunk):
+    batch = str(uuid.uuid4())
+    conn = snowflake.connector.connect(...)
+    cur = conn.cursor()
+    
+    for _, r in chunk.iterrows():
+        cur.execute("""
+        INSERT INTO sales_staging VALUES (%s,%s,%s,%s)
+        """, (r.order_id, r.customer, r.amount, batch))
+    conn.commit()
+
+chunks = [df[i:i+500] for i in range(0,len(df),500)]
+
+threads = []
+for c in chunks:
+    t = threading.Thread(target=load_chunk, args=(c,))
+    t.start()
+    threads.append(t)
+
+for t in threads:
+    t.join()
+
+🔀 safe_merge.py
+import snowflake.connector
+
+conn = snowflake.connector.connect(...)
+cur = conn.cursor()
+
+cur.execute("""
+MERGE INTO sales_final t
+USING sales_staging s
+ON t.order_id = s.order_id
+WHEN MATCHED THEN UPDATE SET
+  t.amount = s.amount
+WHEN NOT MATCHED THEN INSERT
+  (order_id, customer, amount)
+  VALUES (s.order_id, s.customer, s.amount);
+""")
+
+cur.execute("TRUNCATE TABLE sales_staging")
+conn.commit()
+
+
+⏱ Airflow – concurrent_pipeline.py
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+with DAG("concurrent_loader",
+         start_date=datetime(2024,1,1),
+         schedule_interval="@hourly",
+         catchup=False) as dag:
+
+    generate = BashOperator(
+        task_id="generate",
+        bash_command="python /python/generate_data.py"
+    )
+
+    load = BashOperator(
+        task_id="concurrent_load",
+        bash_command="python /python/concurrent_load.py"
+    )
+
+    merge = BashOperator(
+        task_id="merge",
+        bash_command="python /python/safe_merge.py"
+    )
+
+    generate >> load >> merge
+
+
