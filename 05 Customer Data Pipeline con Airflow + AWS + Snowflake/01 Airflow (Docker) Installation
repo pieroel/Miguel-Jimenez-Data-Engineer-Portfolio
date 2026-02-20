@@ -1,0 +1,9 @@
+mkdir airflow-project
+cd airflow-project
+
+curl -LfO https://airflow.apache.org/docs/apache-airflow/2.8.1/docker-compose.yaml
+
+mkdir ./dags ./logs ./plugins
+
+docker compose up airflow-init
+docker compose up
