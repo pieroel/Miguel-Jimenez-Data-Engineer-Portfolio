@@ -1,0 +1,29 @@
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime
+import pandas as pd
+
+def extract():
+    df = pd.read_csv('/opt/airflow/dags/customers.csv')
+    df.to_csv('/tmp/raw_customers.csv', index=False)
+
+def transform():
+    df = pd.read_csv('/tmp/raw_customers.csv')
+    df['email'] = df['email'].str.lower()
+    df.to_csv('/tmp/clean_customers.csv', index=False)
+
+def load():
+    print("Simulación carga a Snowflake")
+
+with DAG(
+    dag_id='customer_pipeline',
+    start_date=datetime(2024,1,1),
+    schedule_interval='@daily',
+    catchup=False
+) as dag:
+
+    t1 = PythonOperator(task_id='extract', python_callable=extract)
+    t2 = PythonOperator(task_id='transform', python_callable=transform)
+    t3 = PythonOperator(task_id='load', python_callable=load)
+
+    t1 >> t2 >> t3
