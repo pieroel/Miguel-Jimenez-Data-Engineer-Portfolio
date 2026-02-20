@@ -7,3 +7,6 @@ mkdir ./dags ./logs ./plugins
 
 docker compose up airflow-init
 docker compose up
+
+--- accessing ---
+http://localhost:8080
