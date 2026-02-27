@@ -110,7 +110,9 @@ WHEN NOT MATCHED THEN INSERT *
 
 Eso demuestra manejo avanzado de Delta Lake.
 
+
 🚀 PARTE 2 — PIPELINE COMPLETO EN DATABRICKS SQL
+
 🟤 BRONZE (SQL)
 CREATE TABLE bronze_ventas
 USING DELTA
@@ -119,6 +121,7 @@ AS
 SELECT *,
        current_timestamp() AS ingestion_timestamp
 FROM csv.`/mnt/datalake/raw/ventas_2025.csv`
+
 ⚪ SILVER (SQL)
 CREATE OR REPLACE TABLE silver_ventas
 USING DELTA
@@ -135,6 +138,8 @@ SELECT
 FROM bronze_ventas
 WHERE cantidad > 0
 AND fecha IS NOT NULL;
+
+
 🟡 GOLD (SQL)
 CREATE OR REPLACE TABLE gold_ventas_mensuales
 USING DELTA
