@@ -1,0 +1,68 @@
+SCALA
+
+Installing Java
+
+. Ensure you have Java 8 (or 9) installed, must be JDK, not JRE
+
+. Oracle JDK is recommended http://www.oracle.com/technetwork
+/java/javase/downloads/jdk8-downloads-2133151.html
+
+. Test with
+
+09:26 $ javac -version
+javac 1.8.0_162
+
+. Your version may vary, but checking javac ensures you have the JDK
+installed correctly
+
+. For apt-based Linux, PPA is available at https://launchpad.net
+[~webupd8team/+archive/ubuntu/java
+
+
+
+
+SOFTWARE
+
+Installing Scala
+
+. Follow the instructions at http://www.scala-lang.org/download/
+. We recommend installing both IntelliJ Community Edition and SBT
+. If you also scroll down to the bottom of the page you will find Scala
+standalone installers for most OSs
+
+. For Mac OS X, download and unpack the tgz file, and put the bin directory
+on your path
+. Get the latest versions of each that are available, for Scala, make sure it is
+at least version 2.12
+
+· Test it with:
+
+09:41 $ scala
+Welcome to Scala 2.12.4 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_162).
+Type in expressions for evaluation. Or try :help.
+
+scala>
+
+. Hit Ctrl-D or type : quit to exit the Scala REPL
+
+
+
+
+
+Installing SBT
+
+. Follow the instructions at http://www.scala-sbt.org/download.html
+
+. These should be correct for your operating system
+
+. After installing, test with:
+
+dick@Hercules :~ /Downloads$ sbt sbtVersion
+[info] Set current project to downloads (in build file:/home/dick/Downloads/)
+[info] 1.1.0
+
+. Running SBT for the first time may give out many more messages, these
+are expected
+
+. The main thing is that you see a number at the end, and that the number
+is 1.0 or higher
