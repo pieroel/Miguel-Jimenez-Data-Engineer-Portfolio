@@ -1,0 +1,144 @@
+scripts Bash para respaldos automáticos diarios que: 
+Ejecutan backups
+Comprimen archivos 
+Eliminan respaldos antiguos Registran logs 
+Envían alertas por correo en caso de error
+
+Script Bash: backup.sh
+
+#!/bin/bash
+
+# ============================================
+# CONFIGURACIÓN
+# ============================================
+
+# Directorio a respaldar
+SOURCE_DIR="/home/usuario/documentos"
+
+# Directorio donde se guardarán los backups
+BACKUP_DIR="/home/usuario/backups"
+
+# Directorio de logs
+LOG_DIR="/home/usuario/backups/logs"
+
+# Retención de backups (días)
+RETENTION_DAYS=7
+
+# Correo para alertas
+EMAIL="admin@correo.com"
+
+# Fecha actual
+DATE=$(date +"%Y-%m-%d_%H-%M-%S")
+
+# Nombre del archivo backup
+BACKUP_FILE="backup_$DATE.tar.gz"
+
+# Archivo log
+LOG_FILE="$LOG_DIR/backup_$DATE.log"
+
+# ============================================
+# CREAR DIRECTORIOS SI NO EXISTEN
+# ============================================
+
+mkdir -p "$BACKUP_DIR"
+mkdir -p "$LOG_DIR"
+
+# ============================================
+# FUNCIÓN DE ERROR
+# ============================================
+
+send_error_email() {
+    SUBJECT="ERROR: Backup fallido en $(hostname)"
+    MESSAGE="Ocurrió un error durante el proceso de backup.\n\nRevisar log:\n$LOG_FILE"
+
+    echo -e "$MESSAGE" | mail -s "$SUBJECT" "$EMAIL"
+}
+
+# ============================================
+# INICIO DEL LOG
+# ============================================
+
+echo "==========================================" >> "$LOG_FILE"
+echo "INICIO BACKUP: $(date)" >> "$LOG_FILE"
+echo "==========================================" >> "$LOG_FILE"
+
+# ============================================
+# CREAR BACKUP COMPRIMIDO
+# ============================================
+
+tar -czf "$BACKUP_DIR/$BACKUP_FILE" "$SOURCE_DIR" >> "$LOG_FILE" 2>&1
+
+# Verificar si ocurrió error
+if [ $? -ne 0 ]; then
+    echo "[ERROR] Falló la creación del backup." >> "$LOG_FILE"
+    send_error_email
+    exit 1
+fi
+
+echo "[OK] Backup creado: $BACKUP_FILE" >> "$LOG_FILE"
+
+# ============================================
+# ELIMINAR BACKUPS ANTIGUOS
+# ============================================
+
+find "$BACKUP_DIR" -name "*.tar.gz" -type f -mtime +$RETENTION_DAYS -exec rm -f {} \; >> "$LOG_FILE" 2>&1
+
+if [ $? -ne 0 ]; then
+    echo "[ERROR] No se pudieron eliminar backups antiguos." >> "$LOG_FILE"
+    send_error_email
+    exit 1
+fi
+
+echo "[OK] Limpieza de backups antiguos completada." >> "$LOG_FILE"
+
+# ============================================
+# FIN DEL PROCESO
+# ============================================
+
+echo "==========================================" >> "$LOG_FILE"
+echo "BACKUP FINALIZADO: $(date)" >> "$LOG_FILE"
+echo "==========================================" >> "$LOG_FILE"
+
+exit 0
+
+
+Dar permisos de ejecución
+
+chmod +x backup.sh
+
+Programar ejecución automática diaria con Cron
+
+crontab -e
+
+Agregar esta línea para ejecutar todos los días a las 2:00 AM:
+
+0 2 * * * /ruta/completa/backup.sh
+
+Instalar utilidad de correo (Linux)
+Ubuntu/Debian
+sudo apt update
+sudo apt install mailutils -y
+CentOS/RHEL
+sudo yum install mailx -y
+
+Qué hace este script
+Función	Descripción
+Backup	Respalda el directorio especificado
+Compresión	Genera .tar.gz
+Logs	Guarda logs con fecha
+Limpieza	Elimina backups antiguos
+Alertas	Envía correo si ocurre error
+Automatización	Funciona con cron
+Estructura recomendada
+/home/usuario/backups/
+│
+├── backup_2026-05-15_02-00-00.tar.gz
+├── backup_2026-05-16_02-00-00.tar.gz
+│
+└── logs/
+    ├── backup_2026-05-15.log
+    └── backup_2026-05-16.log
+Mejoras opcionales
+
+
+
