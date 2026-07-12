@@ -1,0 +1,171 @@
+CREATE PROCEDURE sp_CargaClientes
+AS
+BEGIN
+
+SET NOCOUNT ON;
+
+DECLARE @Inicio DATETIME
+DECLARE @Fin DATETIME
+
+DECLARE @Insertados INT=0
+DECLARE @Actualizados INT=0
+DECLARE @Rechazados INT=0
+DECLARE @Origen INT=0
+
+SET @Inicio=GETDATE()
+
+BEGIN TRY
+
+---------------------------------------------------
+-- Total origen
+---------------------------------------------------
+
+SELECT @Origen=COUNT(*)
+FROM stg_clientes
+
+---------------------------------------------------
+-- Validaciones
+---------------------------------------------------
+
+INSERT INTO ETL_Errores
+(
+ClienteID,
+ErrorDescripcion
+)
+SELECT
+ClienteID,
+'Nombre vacío'
+FROM stg_clientes
+WHERE Nombre IS NULL
+
+SET @Rechazados=@@ROWCOUNT
+
+---------------------------------------------------
+-- Actualizar clientes existentes
+---------------------------------------------------
+
+UPDATE D
+
+SET
+
+D.Nombre=S.Nombre,
+D.Telefono=S.Telefono
+
+FROM dw_clientes D
+
+INNER JOIN stg_clientes S
+
+ON D.ClienteID=S.ClienteID
+
+WHERE
+
+ISNULL(D.Nombre,'')<>ISNULL(S.Nombre,'')
+OR
+ISNULL(D.Telefono,'')<>ISNULL(S.Telefono,'')
+
+SET @Actualizados=@@ROWCOUNT
+
+---------------------------------------------------
+-- Insertar nuevos clientes
+---------------------------------------------------
+
+INSERT INTO dw_clientes
+(
+ClienteID,
+Nombre,
+Telefono
+)
+
+SELECT
+
+S.ClienteID,
+S.Nombre,
+S.Telefono
+
+FROM stg_clientes S
+
+LEFT JOIN dw_clientes D
+
+ON S.ClienteID=D.ClienteID
+
+WHERE
+
+D.ClienteID IS NULL
+
+AND
+
+S.Nombre IS NOT NULL
+
+SET @Insertados=@@ROWCOUNT
+
+---------------------------------------------------
+-- Fin
+---------------------------------------------------
+
+SET @Fin=GETDATE()
+
+INSERT INTO ETL_Auditoria
+(
+NombreProceso,
+FechaInicio,
+FechaFin,
+TiempoEjecucionSegundos,
+RegistrosOrigen,
+RegistrosInsertados,
+RegistrosActualizados,
+RegistrosRechazados,
+Estado
+)
+
+VALUES
+(
+'Carga Clientes',
+@Inicio,
+@Fin,
+DATEDIFF(SECOND,@Inicio,@Fin),
+@Origen,
+@Insertados,
+@Actualizados,
+@Rechazados,
+'OK'
+)
+
+END TRY
+
+BEGIN CATCH
+
+SET @Fin=GETDATE()
+
+INSERT INTO ETL_Auditoria
+(
+NombreProceso,
+FechaInicio,
+FechaFin,
+TiempoEjecucionSegundos,
+RegistrosOrigen,
+RegistrosInsertados,
+RegistrosActualizados,
+RegistrosRechazados,
+Estado,
+MensajeError
+)
+
+VALUES
+(
+'Carga Clientes',
+@Inicio,
+@Fin,
+DATEDIFF(SECOND,@Inicio,@Fin),
+@Origen,
+@Insertados,
+@Actualizados,
+@Rechazados,
+'ERROR',
+ERROR_MESSAGE()
+)
+
+THROW;
+
+END CATCH
+
+END
